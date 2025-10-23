@@ -1,14 +1,17 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+
 
 class UserBrief(BaseModel):
     id: int
     name: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 class UserProfile(BaseModel):
     id: int
     name: str
     followers: list[UserBrief]
     following: list[UserBrief]
+
+    model_config = ConfigDict(from_attributes=True)
