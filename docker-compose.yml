@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: microblog
+      POSTGRES_USER: microblog
+      POSTGRES_PASSWORD: microblog
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U microblog -d microblog"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - media:/app/media
+      - ./dist:/app/dist:ro
+    ports:
+      - "8000:8000"
+    command: >
+      bash -c "
+        until pg_isready -h db -U microblog -d microblog; do
+          echo 'Waiting for Postgres...';
+          sleep 2;
+        done &&
+        alembic upgrade head &&
+        python -m app.seed &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000
+      "
+
+volumes:
+  pgdata:
+  media:
