@@ -1,0 +1,81 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.so
+*.egg
+*.egg-info/
+build/
+.eggs/
+.env
+*.env
+.env.*
+.envrc
+
+# Byte-compiled / cache
+*.log
+*.pot
+*.pyc
+*.pyo
+*.db
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Virtualenv
+venv/
+.venv/
+ENV/
+env/
+env.bak/
+
+# Mypy / coverage / pytest
+.mypy_cache/
+.pytest_cache/
+coverage.xml
+htmlcov/
+.tox/
+.cache/
+
+# Alembic
+alembic/*.pyc
+alembic/__pycache__/
+alembic/versions/*.pyc
+alembic/versions/__pycache__/
+
+# Media / uploads
+media/
+
+# Docker
+*.pid
+*.tar
+docker-compose.override.yml
+**/__pycache__/
+
+# Node / frontend artifacts
+node_modules/
+npm-debug.log
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+# if you build dist via npm run build locally and commit only final dist for prod:
+# !dist/
+
+#Additional ignores
+AGENTS.md
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+coverage/
