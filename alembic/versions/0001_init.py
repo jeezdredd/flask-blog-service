@@ -6,7 +6,8 @@ down_revision = None
 branch_labels = None
 depends_on = None
 
-def upgrade():
+
+def upgrade() -> None:
     op.create_table(
         "users",
         sa.Column("id", sa.Integer, primary_key=True),
@@ -46,7 +47,8 @@ def upgrade():
         sa.UniqueConstraint("follower_id", "followee_id", name="uq_follow_pair"),
     )
 
-def downgrade():
+
+def downgrade() -> None:
     op.drop_table("follows")
     op.drop_table("likes")
     op.drop_table("tweet_medias")

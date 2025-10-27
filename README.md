@@ -55,6 +55,9 @@ black app tests
 - `POST /api/users/{user_id}/follow` / `DELETE /api/users/{user_id}/follow` — подписки.
 - `GET /api/users/me` — профиль текущего пользователя.
 - `GET /api/users/{user_id}` — публичный профиль.
+- `GET /api/users` — список пользователей с флагом подписки и счётчиками.
+- `GET /api/users/{user_id}/followers` — список читателей.
+- `GET /api/users/{user_id}/following` — список читаемых.
 
 Все ответы имеют вид:
 ```json

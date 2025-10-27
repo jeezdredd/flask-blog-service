@@ -70,3 +70,12 @@ package-lock.json
 yarn.lock
 # if you build dist via npm run build locally and commit only final dist for prod:
 # !dist/
+
+#Additional ignores
+AGENTS.md
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+coverage/

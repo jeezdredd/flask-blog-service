@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import Iterable
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.deps.auth import get_current_user, get_db
@@ -8,7 +9,7 @@ from app.models.follow import Follow
 from app.models.like import Like
 from app.models.media import Media
 from app.models.tweet import Tweet, TweetMedia
-from app.schemas.tweet import TweetCreate, TweetOut
+from app.schemas.tweet import LikeInfo, TweetCreate, TweetOut
 from app.schemas.user import UserBrief
 
 router = APIRouter(prefix="/api/tweets", tags=["tweets"])
@@ -16,13 +17,14 @@ router = APIRouter(prefix="/api/tweets", tags=["tweets"])
 
 def _serialize_tweet(tweet: Tweet) -> dict:
     attachments = [media.path for media in tweet.medias]
-    like_users = [UserBrief.model_validate(like.user) for like in tweet.likes if like.user is not None]
+    like_users = [LikeInfo(user_id=like.user_id, name=like.user.name if like.user else "") for like in tweet.likes]
     payload = TweetOut(
         id=tweet.id,
         content=tweet.content,
         attachments=attachments,
         author=UserBrief.model_validate(tweet.author),
         likes=like_users,
+        stamp=tweet.created_at,
     )
     return payload.model_dump()
 
@@ -113,14 +115,15 @@ def unlike_tweet(
 def feed(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
+    offset: int | None = Query(None),
+    limit: int | None = Query(None),
 ):
-    followed_ids = [row.followee_id for row in db.query(Follow.followee_id).filter(Follow.follower_id == user.id)]
-    if not followed_ids:
-        return {"result": True, "tweets": []}
+    author_ids = {row.followee_id for row in db.query(Follow.followee_id).filter(Follow.follower_id == user.id)}
+    author_ids.add(user.id)
 
     tweets = (
         db.query(Tweet)
-        .filter(Tweet.author_id.in_(followed_ids))
+        .filter(Tweet.author_id.in_(author_ids))
         .options(
             selectinload(Tweet.author),
             selectinload(Tweet.medias),
@@ -129,6 +132,13 @@ def feed(
         .all()
     )
 
-    tweets.sort(key=lambda t: (len(t.likes), t.id), reverse=True)
+    tweets.sort(key=lambda t: (len(t.likes), t.created_at or datetime.min, t.id), reverse=True)
+
+    if limit and limit > 0:
+        skip = 0
+        if offset:
+            skip = max(offset - 1, 0) * limit
+        tweets = tweets[skip : skip + limit]
+
     payload = [_serialize_tweet(tweet) for tweet in tweets]
     return {"result": True, "tweets": payload}

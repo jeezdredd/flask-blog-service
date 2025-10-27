@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.deps.auth import get_current_user, get_db
 from app.models.follow import Follow
 from app.models.user import User
-from app.schemas.user import UserBrief, UserProfile
+from app.schemas.user import UserBrief, UserListItem, UserProfile
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -39,6 +39,37 @@ def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return {"result": True, "user": _serialize_profile(hydrated)}
 
 
+@router.get("")
+def list_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    users = (
+        db.query(User)
+        .options(
+            selectinload(User.followers).joinedload(Follow.follower),
+            selectinload(User.following).joinedload(Follow.followee),
+        )
+        .all()
+    )
+    items = []
+    for user in users:
+        followers = user.followers or []
+        following = user.following or []
+        is_following = any(link.follower_id == current_user.id for link in followers)
+        items.append(
+            UserListItem(
+                id=user.id,
+                name=user.name,
+                is_me=user.id == current_user.id,
+                is_following=is_following,
+                followers_count=len(followers),
+                following_count=len(following),
+            ).model_dump()
+        )
+    return {"result": True, "users": items}
+
+
 @router.get("/{user_id}")
 def user_profile(user_id: int, db: Session = Depends(get_db)):
     user = _load_user_with_relations(db, user_id)
@@ -65,7 +96,8 @@ def follow_user(
     if not already_following:
         db.add(Follow(follower_id=current_user.id, followee_id=user_id))
         db.commit()
-    return {"result": True}
+        return {"result": True, "message": "followed"}
+    return {"result": True, "message": "already_following"}
 
 
 @router.delete("/{user_id}/follow")
@@ -78,4 +110,27 @@ def unfollow_user(
     if relation:
         db.delete(relation)
         db.commit()
-    return {"result": True}
+        return {"result": True, "message": "unfollowed"}
+    return {"result": True, "message": "not_following"}
+
+
+@router.get("/{user_id}/followers")
+def list_followers(user_id: int, db: Session = Depends(get_db)):
+    user = _load_user_with_relations(db, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user not found")
+    followers = [
+        UserBrief.model_validate(link.follower).model_dump() for link in user.followers if link.follower is not None
+    ]
+    return {"result": True, "followers": followers}
+
+
+@router.get("/{user_id}/following")
+def list_following(user_id: int, db: Session = Depends(get_db)):
+    user = _load_user_with_relations(db, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user not found")
+    following = [
+        UserBrief.model_validate(link.followee).model_dump() for link in user.following if link.followee is not None
+    ]
+    return {"result": True, "following": following}
