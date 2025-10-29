@@ -1,1 +1,164 @@
-<!DOCTYPE html><html lang=""><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="/favicon.ico"><title>twitter-clone</title><link href="/css/chunk-0420bcc4.d6bc3184.css" rel="prefetch"><link href="/css/chunk-10e0d5b4.130d80ef.css" rel="prefetch"><link href="/css/chunk-6f77c742.8d9a3d9c.css" rel="prefetch"><link href="/css/chunk-732a3e8c.6334cd6b.css" rel="prefetch"><link href="/js/chunk-0420bcc4.11441662.js" rel="prefetch"><link href="/js/chunk-10e0d5b4.e80e67b6.js" rel="prefetch"><link href="/js/chunk-6f77c742.f09861a7.js" rel="prefetch"><link href="/js/chunk-732a3e8c.57e36fb4.js" rel="prefetch"><link href="/js/chunk-76301fe8.cc56c3b1.js" rel="prefetch"><link href="/css/app.45d81840.css" rel="preload" as="style"><link href="/css/chunk-vendors.de691de6.css" rel="preload" as="style"><link href="/js/app.ee2cdef2.js" rel="preload" as="script"><link href="/js/chunk-vendors.398321e0.js" rel="preload" as="script"><link href="/css/chunk-vendors.de691de6.css" rel="stylesheet"><link href="/css/app.45d81840.css" rel="stylesheet"></head><body><noscript><strong>We're sorry but twitter-clone doesn't work properly without JavaScript enabled. Please enable it to continue.</strong></noscript><div id="app"></div><script src="/js/chunk-vendors.398321e0.js"></script><script src="/js/app.ee2cdef2.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Microblog Control Center</title>
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <script type="module" src="/js/app.js" defer></script>
+</head>
+<body>
+  <noscript>You need to enable JavaScript to run this application.</noscript>
+  <div class="app">
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" role="presentation">
+            <defs>
+              <linearGradient id="brandGradient" x1="10%" y1="0%" x2="90%" y2="100%">
+                <stop offset="0%" stop-color="#6366f1" />
+                <stop offset="100%" stop-color="#3b82f6" />
+              </linearGradient>
+            </defs>
+            <rect width="48" height="48" rx="18" fill="url(#brandGradient)" />
+            <path d="M24 34.5c-.8 0-1.5-.3-2.1-.8-5.8-4.9-9.4-7.8-9.4-12.6 0-3.9 3-6.9 6.9-6.9 2 0 3.9.9 5.1 2.4 1.2-1.5 3.1-2.4 5.1-2.4 3.9 0 6.9 3 6.9 6.9 0 4.8-3.6 7.7-9.4 12.6-.6.5-1.3.8-2.1.8z" fill="#ffffff" opacity="0.92" />
+            <path d="M19.6 21.2c-.9 0-1.7.4-2.2 1" stroke="#312e81" stroke-width="2.2" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div>
+          <h1>Microblog Control Center</h1>
+          <p>Plan announcements, watch engagement, and stay close to your team.</p>
+        </div>
+      </div>
+      <button type="button" class="button primary" id="refresh-feed">Refresh All</button>
+    </header>
+    <div class="app-body">
+      <main class="main">
+        <section class="card user-card">
+          <div class="card-header">
+            <h2>Currently signed in</h2>
+          </div>
+          <div class="card-content">
+            <div class="identity">
+              <div class="identity-name" id="current-user-name">Unknown member</div>
+              <div class="identity-stats">
+                <span><strong id="current-user-following-count">0</strong> following</span>
+                <span><strong id="current-user-followers-count">0</strong> followers</span>
+              </div>
+            </div>
+            <div class="auth-controls">
+              <label class="field">
+                <span class="field-label">Demo profile</span>
+                <select id="api-key-select">
+                  <option value="test">test</option>
+                  <option value="alice">alice</option>
+                  <option value="bob">bob</option>
+                  <option value="custom">custom</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">API key</span>
+                <div class="field-inline">
+                  <input id="api-key-input" type="text" autocomplete="off" placeholder="Enter key" />
+                  <button type="button" class="button secondary" id="apply-api-key">Apply</button>
+                </div>
+              </label>
+            </div>
+            <div class="chip-row" id="following-list"></div>
+          </div>
+        </section>
+        <section class="card compose-card">
+          <div class="card-header">
+            <h2>Share something new</h2>
+            <div class="card-subtitle">Upload an optional image and reach your followers instantly.</div>
+          </div>
+          <form id="compose-form" class="card-content">
+            <label class="field">
+              <span class="field-label">Message</span>
+              <textarea id="compose-text" rows="4" maxlength="1000" placeholder="What is happening across the company?" required></textarea>
+            </label>
+            <div class="compose-actions">
+              <label class="file-picker">
+                <input type="file" id="compose-file" accept="image/*" />
+                <span>Select image</span>
+              </label>
+              <span class="file-name" id="compose-file-name">No file selected</span>
+              <div class="spacer"></div>
+              <button type="submit" class="button primary">Publish update</button>
+            </div>
+          </form>
+        </section>
+        <section class="card feed-card">
+          <div class="card-header">
+            <h2>Team feed</h2>
+            <div class="card-controls">
+              <label class="field slim">
+                <span class="field-label">Sort by</span>
+                <select id="sort-select">
+                  <option value="popular">Most liked</option>
+                  <option value="latest">Latest first</option>
+                </select>
+              </label>
+              <label class="field slim">
+                <span class="field-label">Page size</span>
+                <select id="limit-select">
+                  <option value="5">5</option>
+                  <option value="10" selected>10</option>
+                  <option value="20">20</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <ul id="feed" class="feed-list"></ul>
+          <div class="pagination" id="pagination">
+            <button type="button" class="button secondary" id="prev-page">Previous</button>
+            <span id="page-indicator">Page 1</span>
+            <button type="button" class="button secondary" id="next-page">Next</button>
+          </div>
+        </section>
+      </main>
+      <aside class="sidebar">
+        <section class="card stats-card">
+          <div class="card-header">
+            <h2>Pulse stats</h2>
+          </div>
+          <div class="card-content card-compact">
+            <div class="stat-grid">
+              <div class="stat">
+                <span class="stat-label">Members</span>
+                <span class="stat-value" id="stat-users">0</span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Updates</span>
+                <span class="stat-value" id="stat-tweets">0</span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Likes</span>
+                <span class="stat-value" id="stat-likes">0</span>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="card list-card">
+          <div class="card-header">
+            <h3>Popular voices</h3>
+          </div>
+          <div class="card-content card-compact">
+            <ul class="pill-list" id="popular-authors"></ul>
+          </div>
+        </section>
+        <section class="card list-card">
+          <div class="card-header">
+            <h3>Trending posts</h3>
+          </div>
+          <div class="card-content card-compact">
+            <ul class="pill-list" id="trending-tweets"></ul>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

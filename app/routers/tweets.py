@@ -1,7 +1,7 @@
-from datetime import datetime
 from typing import Iterable
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.deps.auth import get_current_user, get_db
@@ -15,15 +15,19 @@ from app.schemas.user import UserBrief
 router = APIRouter(prefix="/api/tweets", tags=["tweets"])
 
 
-def _serialize_tweet(tweet: Tweet) -> dict:
+def _serialize_tweet(tweet: Tweet, current_user_id: int, likes_count: int | None = None) -> dict:
     attachments = [media.path for media in tweet.medias]
     like_users = [LikeInfo(user_id=like.user_id, name=like.user.name if like.user else "") for like in tweet.likes]
+    effective_likes_count = likes_count if likes_count is not None else len(tweet.likes)
+    liked_by_me = any(like.user_id == current_user_id for like in tweet.likes)
     payload = TweetOut(
         id=tweet.id,
         content=tweet.content,
         attachments=attachments,
         author=UserBrief.model_validate(tweet.author),
         likes=like_users,
+        likes_count=effective_likes_count,
+        liked_by_me=liked_by_me,
         stamp=tweet.created_at,
     )
     return payload.model_dump()
@@ -115,30 +119,56 @@ def unlike_tweet(
 def feed(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
-    offset: int | None = Query(None),
-    limit: int | None = Query(None),
+    sort: str = Query("popular", pattern="^(popular|latest)$"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=50),
+    offset: int | None = Query(None, ge=1),
 ):
     author_ids = {row.followee_id for row in db.query(Follow.followee_id).filter(Follow.follower_id == user.id)}
     author_ids.add(user.id)
 
-    tweets = (
-        db.query(Tweet)
+    likes_count_subquery = (
+        db.query(
+            Like.tweet_id.label("tweet_id"),
+            func.count(Like.id).label("likes_count"),
+        )
+        .group_by(Like.tweet_id)
+        .subquery()
+    )
+
+    likes_count_expr = func.coalesce(likes_count_subquery.c.likes_count, 0)
+
+    query = (
+        db.query(Tweet, likes_count_expr.label("likes_count"))
+        .outerjoin(likes_count_subquery, likes_count_subquery.c.tweet_id == Tweet.id)
         .filter(Tweet.author_id.in_(author_ids))
         .options(
             selectinload(Tweet.author),
             selectinload(Tweet.medias),
             selectinload(Tweet.likes).joinedload(Like.user),
         )
-        .all()
     )
 
-    tweets.sort(key=lambda t: (len(t.likes), t.created_at or datetime.min, t.id), reverse=True)
+    if sort == "popular":
+        query = query.order_by(desc(likes_count_expr), desc(Tweet.created_at), desc(Tweet.id))
+    else:
+        query = query.order_by(desc(Tweet.created_at), desc(Tweet.id), desc(likes_count_expr))
 
-    if limit and limit > 0:
-        skip = 0
-        if offset:
-            skip = max(offset - 1, 0) * limit
-        tweets = tweets[skip : skip + limit]
+    page_number = offset if offset is not None else page
+    skip = (page_number - 1) * limit
 
-    payload = [_serialize_tweet(tweet) for tweet in tweets]
-    return {"result": True, "tweets": payload}
+    rows = query.offset(skip).limit(limit + 1).all()
+    has_next = len(rows) > limit
+    rows = rows[:limit]
+
+    payload = [_serialize_tweet(tweet, current_user_id=user.id, likes_count=likes_count) for tweet, likes_count in rows]
+    pagination = {
+        "page": page_number,
+        "limit": limit,
+        "sort": sort,
+        "has_next": has_next,
+        "has_previous": page_number > 1,
+        "next_page": page_number + 1 if has_next else None,
+        "previous_page": page_number - 1 if page_number > 1 else None,
+    }
+    return {"result": True, "tweets": payload, "pagination": pagination}

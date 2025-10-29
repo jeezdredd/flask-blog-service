@@ -21,6 +21,8 @@ class TweetOut(BaseModel):
     attachments: list[str]
     author: UserBrief
     likes: list[LikeInfo]
+    likes_count: int
+    liked_by_me: bool
     stamp: datetime
 
     model_config = ConfigDict(from_attributes=True)

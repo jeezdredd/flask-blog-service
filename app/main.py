@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from app.routers.users import router as users_router
 from app.routers.medias import router as medias_router
 from app.routers.tweets import router as tweets_router
+from app.routers.dashboard import router as dashboard_router
 from app.db.session import SessionLocal
 from app.seed import seed_demo_data
 
@@ -17,6 +18,7 @@ app = FastAPI(title="Microblog API", version="0.1.0")
 app.include_router(users_router)
 app.include_router(medias_router)
 app.include_router(tweets_router)
+app.include_router(dashboard_router)
 
 logger = logging.getLogger(__name__)
 
