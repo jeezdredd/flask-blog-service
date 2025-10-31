@@ -71,7 +71,11 @@ def list_users(
 
 
 @router.get("/{user_id}")
-def user_profile(user_id: int, db: Session = Depends(get_db)):
+def user_profile(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     user = _load_user_with_relations(db, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user not found")

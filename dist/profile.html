@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>User Profile - Microblog</title>
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/css/style.css?v=2" />
+  <script type="module" src="/js/profile.js?v=2" defer></script>
+</head>
+<body>
+  <noscript>You need to enable JavaScript to run this application.</noscript>
+  <div class="app">
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" role="presentation">
+            <defs>
+              <linearGradient id="brandGradient" x1="10%" y1="0%" x2="90%" y2="100%">
+                <stop offset="0%" stop-color="#0ea5e9" />
+                <stop offset="100%" stop-color="#a855f7" />
+              </linearGradient>
+            </defs>
+            <rect width="48" height="48" rx="18" fill="url(#brandGradient)" />
+            <path d="M24 34.5c-.8 0-1.5-.3-2.1-.8-5.8-4.9-9.4-7.8-9.4-12.6 0-3.9 3-6.9 6.9-6.9 2 0 3.9.9 5.1 2.4 1.2-1.5 3.1-2.4 5.1-2.4 3.9 0 6.9 3 6.9 6.9 0 4.8-3.6 7.7-9.4 12.6-.6.5-1.3.8-2.1.8z" fill="#ffffff" opacity="0.92" />
+            <path d="M19.6 21.2c-.9 0-1.7.4-2.2 1" stroke="#312e81" stroke-width="2.2" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div>
+          <h1>Microblog Control Center</h1>
+          <p>Plan announcements, watch engagement, and stay close to your team.</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a href="/" class="button ghost">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Back to Feed
+        </a>
+      </div>
+    </header>
+    <div class="app-body profile-layout">
+      <main class="main">
+        <div id="debug-info" style="background: #f0f9ff; border: 2px solid #0ea5e9; padding: 16px; margin-bottom: 20px; border-radius: 12px;">
+          <h3 style="margin: 0 0 8px 0; color: #0369a1;">Debug Info</h3>
+          <p style="margin: 4px 0; font-family: monospace; font-size: 14px;" id="debug-url"></p>
+          <p style="margin: 4px 0; font-family: monospace; font-size: 14px;" id="debug-key"></p>
+          <p style="margin: 4px 0; font-family: monospace; font-size: 14px;" id="debug-status"></p>
+        </div>
+        <section class="profile-card">
+          <div class="profile-cover" id="profile-cover"></div>
+          <div class="profile-header">
+            <div class="profile-avatar-container">
+              <div class="profile-avatar" id="profile-avatar"></div>
+            </div>
+            <div class="profile-info">
+              <h2 class="profile-name" id="profile-name">Loading...</h2>
+              <div class="profile-stats">
+                <span><strong id="profile-following-count">0</strong> following</span>
+                <span><strong id="profile-followers-count">0</strong> followers</span>
+              </div>
+            </div>
+            <div class="profile-actions" id="profile-actions"></div>
+          </div>
+          <div class="profile-tabs">
+            <button type="button" class="tab-button active" data-tab="followers">
+              Followers
+            </button>
+            <button type="button" class="tab-button" data-tab="following">
+              Following
+            </button>
+          </div>
+          <div class="profile-content">
+            <div class="tab-content active" id="tab-followers">
+              <div class="users-grid" id="followers-grid"></div>
+            </div>
+            <div class="tab-content" id="tab-following">
+              <div class="users-grid" id="following-grid"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
+

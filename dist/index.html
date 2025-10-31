@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Microblog Control Center</title>
+  <title>Социальная сеть - Главная</title>
   <link rel="icon" href="/favicon.ico" />
   <link rel="stylesheet" href="/css/style.css" />
   <script type="module" src="/js/app.js" defer></script>
@@ -17,8 +17,8 @@
           <svg viewBox="0 0 48 48" role="presentation">
             <defs>
               <linearGradient id="brandGradient" x1="10%" y1="0%" x2="90%" y2="100%">
-                <stop offset="0%" stop-color="#6366f1" />
-                <stop offset="100%" stop-color="#3b82f6" />
+                <stop offset="0%" stop-color="#0ea5e9" />
+                <stop offset="100%" stop-color="#a855f7" />
               </linearGradient>
             </defs>
             <rect width="48" height="48" rx="18" fill="url(#brandGradient)" />
@@ -31,40 +31,31 @@
           <p>Plan announcements, watch engagement, and stay close to your team.</p>
         </div>
       </div>
-      <button type="button" class="button primary" id="refresh-feed">Refresh All</button>
+      <div class="header-actions">
+        <div class="current-user-badge">
+          <span class="user-badge-label">Signed in as</span>
+          <span class="user-badge-name" id="current-user-name">Unknown member</span>
+          <button type="button" class="button ghost small" id="open-auth-modal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/>
+            </svg>
+            Change
+          </button>
+        </div>
+        <button type="button" class="button primary" id="refresh-feed">Refresh All</button>
+      </div>
     </header>
     <div class="app-body">
       <main class="main">
-        <section class="card user-card">
+        <section class="card user-following-card">
           <div class="card-header">
-            <h2>Currently signed in</h2>
+            <h2>Your network</h2>
+            <div class="card-subtitle">
+              <span><strong id="current-user-following-count">0</strong> following</span>
+              <span><strong id="current-user-followers-count">0</strong> followers</span>
+            </div>
           </div>
-          <div class="card-content">
-            <div class="identity">
-              <div class="identity-name" id="current-user-name">Unknown member</div>
-              <div class="identity-stats">
-                <span><strong id="current-user-following-count">0</strong> following</span>
-                <span><strong id="current-user-followers-count">0</strong> followers</span>
-              </div>
-            </div>
-            <div class="auth-controls">
-              <label class="field">
-                <span class="field-label">Demo profile</span>
-                <select id="api-key-select">
-                  <option value="test">test</option>
-                  <option value="alice">alice</option>
-                  <option value="bob">bob</option>
-                  <option value="custom">custom</option>
-                </select>
-              </label>
-              <label class="field">
-                <span class="field-label">API key</span>
-                <div class="field-inline">
-                  <input id="api-key-input" type="text" autocomplete="off" placeholder="Enter key" />
-                  <button type="button" class="button secondary" id="apply-api-key">Apply</button>
-                </div>
-              </label>
-            </div>
+          <div class="card-content card-compact">
             <div class="chip-row" id="following-list"></div>
           </div>
         </section>
@@ -160,5 +151,37 @@
     </div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <div id="auth-modal" class="modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Sign in</h2>
+        <button type="button" class="modal-close" id="close-auth-modal" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <label class="field">
+          <span class="field-label">Demo profile</span>
+          <select id="api-key-select">
+            <option value="test">test</option>
+            <option value="alice">alice</option>
+            <option value="bob">bob</option>
+            <option value="custom">custom</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">API key</span>
+          <div class="field-inline">
+            <input id="api-key-input" type="text" autocomplete="off" placeholder="Enter key" />
+            <button type="button" class="button primary" id="apply-api-key">Apply</button>
+          </div>
+        </label>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

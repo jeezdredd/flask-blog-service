@@ -36,6 +36,9 @@ const elements = {
   statLikes: document.getElementById("stat-likes"),
   popularAuthors: document.getElementById("popular-authors"),
   trendingTweets: document.getElementById("trending-tweets"),
+  authModal: document.getElementById("auth-modal"),
+  openAuthModal: document.getElementById("open-auth-modal"),
+  closeAuthModal: document.getElementById("close-auth-modal"),
 };
 
 function showToast(message, type = "info") {
@@ -45,9 +48,9 @@ function showToast(message, type = "info") {
   }
   toast.textContent = message;
   if (type && type !== "info") {
-    toast.dataset.type = type;
+    toast.setAttribute("data-type", type);
   } else {
-    delete toast.dataset.type;
+    toast.removeAttribute("data-type");
   }
   toast.classList.add("visible");
   if (state.toastTimer) {
@@ -117,11 +120,12 @@ function applyLocalLikeState(tweetId, shouldBeLiked) {
     return;
   }
 
-  const tweet = state.tweets.find((item) => Number(item.id) === Number(tweetId));
-  if (!tweet) {
+  const tweetIndex = state.tweets.findIndex((item) => Number(item.id) === Number(tweetId));
+  if (tweetIndex === -1) {
     return;
   }
 
+  const tweet = state.tweets[tweetIndex];
   const alreadyLiked = Boolean(tweet.liked_by_me);
   if (alreadyLiked === shouldBeLiked) {
     return;
@@ -129,8 +133,7 @@ function applyLocalLikeState(tweetId, shouldBeLiked) {
 
   const delta = shouldBeLiked ? 1 : -1;
   const currentCount = Number.isFinite(tweet.likes_count) ? Number(tweet.likes_count) : Number(tweet.likes?.length || 0);
-  tweet.likes_count = Math.max(0, currentCount + delta);
-  tweet.liked_by_me = shouldBeLiked;
+  const newLikesCount = Math.max(0, currentCount + delta);
 
   const currentUser = state.currentUser;
   const likesArray = Array.isArray(tweet.likes) ? [...tweet.likes] : [];
@@ -146,7 +149,13 @@ function applyLocalLikeState(tweetId, shouldBeLiked) {
     }
   }
 
-  tweet.likes = likesArray;
+  // Create a new tweet object instead of modifying the existing one
+  state.tweets[tweetIndex] = {
+    ...tweet,
+    likes_count: newLikesCount,
+    liked_by_me: shouldBeLiked,
+    likes: likesArray
+  };
 }
 
 async function request(path, { method = "GET", json, formData } = {}) {
@@ -166,19 +175,37 @@ async function request(path, { method = "GET", json, formData } = {}) {
   const response = await fetch(path, { method, headers, body });
   const contentType = response.headers.get("content-type") || "";
   let payload = null;
-  if (contentType.includes("application/json")) {
-    payload = await response.json();
-  } else if (contentType.includes("text/")) {
-    payload = await response.text();
+
+  try {
+    if (contentType.includes("application/json")) {
+      payload = await response.json();
+    } else if (contentType.includes("text/")) {
+      payload = await response.text();
+    }
+  } catch (parseError) {
+    console.log("Error")
+    if (!response.ok) {
+      throw new Error(response.statusText || "Request failed");
+    }
+    throw parseError;
   }
 
   if (!response.ok) {
-    const message = payload && payload.error_message
-      ? payload.error_message
-      : payload && payload.detail
-        ? payload.detail
-        : response.statusText;
-    throw new Error(message || "Request failed");
+    let message = response.statusText || "Request failed";
+    if (payload) {
+      if (typeof payload === "string") {
+        message = payload;
+      } else if (payload.error_message) {
+        message = payload.error_message;
+      } else if (payload.detail) {
+        if (typeof payload.detail === "string") {
+          message = payload.detail;
+        } else if (Array.isArray(payload.detail)) {
+          message = payload.detail.map(d => d.msg || JSON.stringify(d)).join(", ");
+        }
+      }
+    }
+    throw new Error(message);
   }
 
   if (payload && payload.result === false) {
@@ -215,21 +242,33 @@ function renderCurrentUser(user) {
   if (elements.followingList) {
     elements.followingList.innerHTML = "";
     if (user.following.length === 0) {
-      const chip = document.createElement("span");
-      chip.className = "chip muted";
-      chip.textContent = "Not following anyone yet";
-      elements.followingList.appendChild(chip);
+      const empty = document.createElement("div");
+      empty.className = "empty-state-mini";
+      empty.textContent = "Not following anyone yet";
+      elements.followingList.appendChild(empty);
     } else {
       user.following.slice(0, 6).forEach((followee) => {
-        const chip = document.createElement("span");
-        chip.className = "chip";
-        chip.textContent = followee.name;
-        elements.followingList.appendChild(chip);
+        const userCard = document.createElement("a");
+        userCard.href = `/profile.html?id=${followee.id}`;
+        userCard.className = "following-user-card";
+
+        const avatar = document.createElement("div");
+        avatar.className = "following-avatar";
+        const initials = followee.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        avatar.textContent = initials;
+
+        const name = document.createElement("span");
+        name.className = "following-name";
+        name.textContent = followee.name;
+
+        userCard.appendChild(avatar);
+        userCard.appendChild(name);
+        elements.followingList.appendChild(userCard);
       });
       if (user.following.length > 6) {
-        const more = document.createElement("span");
-        more.className = "chip muted";
-        more.textContent = `+${user.following.length - 6}`;
+        const more = document.createElement("div");
+        more.className = "following-more";
+        more.textContent = `+${user.following.length - 6} more`;
         elements.followingList.appendChild(more);
       }
     }
@@ -356,20 +395,33 @@ function renderFeed() {
   state.tweets.forEach((tweet) => {
     const item = document.createElement("li");
     item.className = "tweet-card";
-    item.dataset.tweetId = String(tweet.id);
+    item.setAttribute("data-tweet-id", String(tweet.id));
 
     const header = document.createElement("div");
     header.className = "tweet-header";
 
+    const authorInfo = document.createElement("a");
+    authorInfo.href = `/profile.html?id=${tweet.author.id}`;
+    authorInfo.className = "tweet-author-info";
+
+    const avatar = document.createElement("div");
+    avatar.className = "tweet-author-avatar";
+    const authorName = tweet.author.name || "User";
+    const initials = authorName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    avatar.textContent = initials;
+
     const author = document.createElement("div");
     author.className = "tweet-author";
-    author.textContent = tweet.author.name;
+    author.textContent = authorName;
+
+    authorInfo.appendChild(avatar);
+    authorInfo.appendChild(author);
 
     const meta = document.createElement("div");
     meta.className = "tweet-meta";
     meta.textContent = formatDate(tweet.stamp);
 
-    header.appendChild(author);
+    header.appendChild(authorInfo);
     header.appendChild(meta);
     item.appendChild(header);
 
@@ -390,46 +442,25 @@ function renderFeed() {
       item.appendChild(attachments);
     }
 
-    const likesToShow = Array.isArray(tweet.likes) ? tweet.likes.slice(0, 6) : [];
-    if (likesToShow.length) {
-      const likesList = document.createElement("div");
-      likesList.className = "likes-list";
-      likesToShow.forEach((like) => {
-        const chip = document.createElement("span");
-        chip.className = "chip";
-        chip.textContent = like.name || `User ${like.user_id}`;
-        likesList.appendChild(chip);
-      });
-      const remainingLikes = Math.max(0, Number(tweet.likes_count || likesToShow.length) - likesToShow.length);
-      if (remainingLikes > 0) {
-        const more = document.createElement("span");
-        more.className = "chip muted";
-        more.textContent = `+${remainingLikes}`;
-        likesList.appendChild(more);
-      }
-      item.appendChild(likesList);
-    }
-
     const footer = document.createElement("div");
     footer.className = "tweet-footer";
 
     const likeButton = document.createElement("button");
     likeButton.type = "button";
-    likeButton.className = "button secondary like-button";
-    likeButton.dataset.action = "toggle-like";
-    likeButton.dataset.liked = String(Boolean(tweet.liked_by_me));
-    const likeCount = Number(tweet.likes_count || 0);
-    const likeIcon = document.createElement("img");
-    likeIcon.src = "/favicon.ico";
-    likeIcon.alt = "Like";
-    likeIcon.className = "like-icon";
+    likeButton.className = "button like-button";
+    likeButton.setAttribute("data-action", "toggle-like");
+    likeButton.setAttribute("data-liked", String(Boolean(tweet.liked_by_me)));
+    const likeIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    likeIcon.setAttribute("viewBox", "0 0 24 24");
+    likeIcon.setAttribute("fill", "currentColor");
+    likeIcon.setAttribute("class", "like-icon");
+    const heartPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    heartPath.setAttribute("d", "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z");
+    likeIcon.appendChild(heartPath);
     likeButton.appendChild(likeIcon);
     const likeText = document.createElement("span");
-    likeText.textContent = likeCount === 0 ? "Like" : likeCount === 1 ? "1 like" : `${likeCount} likes`;
+    likeText.textContent = "Like";
     likeButton.appendChild(likeText);
-    if (likeCount === 1) {
-      likeButton.classList.add("one-like");
-    }
     likeButton.setAttribute("aria-pressed", tweet.liked_by_me ? "true" : "false");
     if (tweet.liked_by_me) {
       likeButton.classList.add("is-active");
@@ -443,14 +474,100 @@ function renderFeed() {
       const deleteButton = document.createElement("button");
       deleteButton.type = "button";
       deleteButton.className = "button ghost danger";
-      deleteButton.dataset.action = "delete-tweet";
+      deleteButton.setAttribute("data-action", "delete-tweet");
       deleteButton.textContent = "Delete";
       footer.appendChild(deleteButton);
     }
 
     item.appendChild(footer);
+
+    const likesToShow = Array.isArray(tweet.likes) ? tweet.likes.slice(0, 6) : [];
+    const totalLikes = Number(tweet.likes_count || 0);
+
+    if (totalLikes > 0) {
+      const likesList = document.createElement("div");
+      likesList.className = "likes-list";
+
+      const avatarsContainer = document.createElement("div");
+      avatarsContainer.className = "likes-avatars";
+
+      likesToShow.forEach((like) => {
+        const avatar = document.createElement("div");
+        avatar.className = "like-avatar";
+        const name = like.name || `User ${like.user_id}`;
+        avatar.setAttribute("data-name", name);
+        const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        avatar.textContent = initials;
+        avatarsContainer.appendChild(avatar);
+      });
+
+      const remainingLikes = Math.max(0, totalLikes - likesToShow.length);
+      if (remainingLikes > 0) {
+        const more = document.createElement("div");
+        more.className = "like-avatar more";
+        more.textContent = `+${remainingLikes}`;
+        more.setAttribute("data-name", `${remainingLikes} more`);
+        avatarsContainer.appendChild(more);
+      }
+
+      likesList.appendChild(avatarsContainer);
+
+      const label = document.createElement("span");
+      label.className = "likes-label";
+      label.textContent = totalLikes === 1 ? "liked this" : `${totalLikes} likes`;
+      likesList.appendChild(label);
+
+      item.appendChild(likesList);
+    }
+
     elements.feedList.appendChild(item);
   });
+}
+
+function updateLikesDisplay(container, tweet) {
+  const existingLikesList = container.querySelector(".likes-list");
+  if (existingLikesList) {
+    existingLikesList.remove();
+  }
+
+  const likesToShow = Array.isArray(tweet.likes) ? tweet.likes.slice(0, 6) : [];
+  const totalLikes = Number(tweet.likes_count || 0);
+
+  if (totalLikes > 0) {
+    const likesList = document.createElement("div");
+    likesList.className = "likes-list";
+
+    const avatarsContainer = document.createElement("div");
+    avatarsContainer.className = "likes-avatars";
+
+    likesToShow.forEach((like) => {
+      const avatar = document.createElement("div");
+      avatar.className = "like-avatar";
+      const name = like.name || `User ${like.user_id}`;
+      avatar.setAttribute("data-name", name);
+      const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+      avatar.textContent = initials;
+      avatarsContainer.appendChild(avatar);
+    });
+
+    const remainingLikes = Math.max(0, totalLikes - likesToShow.length);
+    if (remainingLikes > 0) {
+      const more = document.createElement("div");
+      more.className = "like-avatar more";
+      more.textContent = `+${remainingLikes}`;
+      more.setAttribute("data-name", `${remainingLikes} more`);
+      avatarsContainer.appendChild(more);
+    }
+
+    likesList.appendChild(avatarsContainer);
+
+    const label = document.createElement("span");
+    label.className = "likes-label";
+    label.textContent = totalLikes === 1 ? "liked this" : `${totalLikes} likes`;
+    likesList.appendChild(label);
+
+    container.appendChild(likesList);
+  }
 }
 
 function updatePaginationControls() {
@@ -533,12 +650,31 @@ async function handleLike(tweetId, liked, triggerButton) {
     if (liked) {
       await request(`/api/tweets/${tweetId}/likes`, { method: "DELETE" });
       applyLocalLikeState(tweetId, false);
+      if (triggerButton) {
+        triggerButton.setAttribute("data-liked", "false");
+        triggerButton.classList.remove("is-active");
+        triggerButton.setAttribute("aria-pressed", "false");
+        triggerButton.title = "Like";
+      }
     } else {
       await request(`/api/tweets/${tweetId}/likes`, { method: "POST" });
       applyLocalLikeState(tweetId, true);
+      if (triggerButton) {
+        triggerButton.setAttribute("data-liked", "true");
+        triggerButton.classList.add("is-active");
+        triggerButton.setAttribute("aria-pressed", "true");
+        triggerButton.title = "Unlike";
+      }
     }
-    renderFeed();
-    updatePaginationControls();
+
+    const container = triggerButton ? triggerButton.closest("[data-tweet-id]") : null;
+    if (container) {
+      const tweet = state.tweets.find(t => t.id === tweetId);
+      if (tweet) {
+        updateLikesDisplay(container, tweet);
+      }
+    }
+
     loadDashboard().catch((error) => {
       console.warn("Failed to refresh dashboard after like", error);
     });
@@ -580,13 +716,13 @@ function handleFeedClick(event) {
   if (!container) {
     return;
   }
-  const tweetId = Number(container.dataset.tweetId);
+  const tweetId = Number(container.getAttribute("data-tweet-id"));
   if (!tweetId) {
     return;
   }
-  const action = button.dataset.action;
+  const action = button.getAttribute("data-action");
   if (action === "toggle-like") {
-    const liked = button.dataset.liked === "true";
+    const liked = button.getAttribute("data-liked") === "true";
     handleLike(tweetId, liked, button);
     return;
   } else if (action === "delete-tweet") {
@@ -595,8 +731,44 @@ function handleFeedClick(event) {
 }
 
 function bindEvents() {
+  if (elements.openAuthModal) {
+    elements.openAuthModal.addEventListener("click", () => {
+      if (elements.authModal) {
+        elements.authModal.classList.add("open");
+      }
+    });
+  }
+
+  if (elements.closeAuthModal) {
+    elements.closeAuthModal.addEventListener("click", () => {
+      if (elements.authModal) {
+        elements.authModal.classList.remove("open");
+      }
+    });
+  }
+
+  if (elements.authModal) {
+    const overlay = elements.authModal.querySelector(".modal-overlay");
+    if (overlay) {
+      overlay.addEventListener("click", () => {
+        elements.authModal.classList.remove("open");
+      });
+    }
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && elements.authModal.classList.contains("open")) {
+        elements.authModal.classList.remove("open");
+      }
+    });
+  }
+
   if (elements.applyApiKey) {
-    elements.applyApiKey.addEventListener("click", () => setApiKey(elements.apiKeyInput.value));
+    elements.applyApiKey.addEventListener("click", () => {
+      setApiKey(elements.apiKeyInput.value);
+      if (elements.authModal) {
+        elements.authModal.classList.remove("open");
+      }
+    });
   }
 
   if (elements.apiKeyInput) {
@@ -604,6 +776,9 @@ function bindEvents() {
       if (event.key === "Enter") {
         event.preventDefault();
         setApiKey(elements.apiKeyInput.value);
+        if (elements.authModal) {
+          elements.authModal.classList.remove("open");
+        }
       }
     });
   }

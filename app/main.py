@@ -81,8 +81,23 @@ for subdir in ("css", "js"):
 
 if index_path.exists():
 
+    @app.get("/favicon.ico")
+    async def favicon():
+        favicon_path = DIST_DIR / "favicon.ico"
+        if favicon_path.exists():
+            return FileResponse(favicon_path)
+        raise HTTPException(status_code=404, detail="Favicon not found")
+
+    @app.get("/")
+    async def index():
+        return FileResponse(index_path)
+
     @app.get("/{full_path:path}")
     async def spa(full_path: str, request: Request):
+        if full_path.endswith(".html"):
+            file_path = DIST_DIR / full_path
+            if file_path.exists():
+                return FileResponse(file_path)
         return FileResponse(index_path)
 
 else:
